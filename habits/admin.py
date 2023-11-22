@@ -7,7 +7,8 @@ from habits.models import Habit
 class HabitAdmin(admin.ModelAdmin):
     fields = ['owner', 'is_pleasant', 'action', 'lead_time', 'is_public', 'reward', 'relating_pleasant_habit',
               'start_time', 'qty_per_period', 'period']
-    list_display = ('pk',)
+    list_display = ('pk', 'owner', 'is_pleasant', 'action', 'lead_time', 'is_public', 'reward', 'relating_pleasant_habit',
+                    'start_time', 'qty_per_period', 'period')
     list_filter = ('owner', 'is_pleasant', 'is_public', 'period')
     search_fields = ('action',)
 

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from config import settings
 from users.models import NULLABLE
@@ -22,8 +23,8 @@ class Habit(models.Model):
                                                 verbose_name='Связанная приятная привычка',
                                                 related_name='related_habits', **NULLABLE)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Владелец",
-                              related_name='habits')
+                              related_name='habits', **NULLABLE)
     qty_per_period = models.PositiveSmallIntegerField(verbose_name='Каждые (указать кол-во интервалов)', default=1)
-    period = models.CharField(max_length=150, choices=Frequency.choices, verbose_name='Интервал',
-                              default=Frequency.DAYS)
-    start_time = models.DateTimeField(verbose_name='Дата и время первого выполнения привычки')
+    period = models.IntegerField(choices=Frequency.choices, verbose_name='Интервал',
+                                 default=Frequency.DAYS)
+    start_time = models.DateTimeField(verbose_name='Дата и время первого выполнения привычки', default=timezone.now)
