@@ -49,28 +49,6 @@ class CreateHabitSerializer(serializers.ModelSerializer):
     # встроенный способ записать текущего пользователя в поле Владельца
     owner = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
-    ### перенесено в validators.py
-    # def validate(self, data):
-    #     """ """
-    #     # если это полезная привычка, то проверяем чтобы было заполнено лишь одно поле:
-    #     # либо reward, либо relating_pleasant_habit
-    #     if not data['is_pleasant']:
-    #         if (not data['reward'] and not data['relating_pleasant_habit']) or \
-    #                 (data['reward'] and data['relating_pleasant_habit']):
-    #             raise serializers.ValidationError(
-    #                 "Необходимо заполнить ОДНО из полей: reward ИЛИ relating_pleasant_habit")
-    #         # если заполнено relating_pleasant_habit, то оно должно быть связано с притяной привычкой
-    #         else:
-    #             if data['relating_pleasant_habit'] and not data['relating_pleasant_habit'].is_pleasant:
-    #                 raise serializers.ValidationError("Связанной привычкой может быть только приятная привычка")
-    #
-    #     # если это приятная привычка, то проверяем чтобы поля reward и relating_pleasant_habit были пустыми
-    #     else:
-    #         if data['reward'] or data['relating_pleasant_habit']:
-    #             raise serializers.ValidationError(
-    #                 "У полезной привычки не может быть вознаграждения или связанной приятной привычки")
-    #     return data
-
     class Meta:
         model = Habit
         fields = '__all__'

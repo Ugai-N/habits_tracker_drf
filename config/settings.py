@@ -187,3 +187,6 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_IMPORTS = [
     'habits.tasks',
 ]
+
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_URL = 'https://api.telegram.org/bot'

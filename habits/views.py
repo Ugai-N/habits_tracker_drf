@@ -5,6 +5,7 @@ from habits.models import Habit
 from habits.paginators import MyHabitsPaginator
 from habits.permissions import IsModerator, IsOwner
 from habits.serializers import HabitSerializer, CreateHabitSerializer
+from habits.services import set_schedule, disable_task
 
 
 class HabitListAPIView(ListAPIView):
@@ -38,12 +39,20 @@ class HabitCreateAPIView(CreateAPIView):
     serializer_class = CreateHabitSerializer
     permission_classes = [IsAuthenticated, ~IsModerator]
 
-    # def perform_create(self, serializer):
-    #     """Сохраняем текущего пользователя владельцем (owner)"""
-    #     new_habit = serializer.save()
-    #     new_habit.owner = self.request.user
-    #     new_habit.save()
-    #     # update_course_data.delay(new_lesson.pk, 'Lesson', 'Создан')
+    def perform_create(self, serializer):
+        """При создании полезной привычки заводим расписание на отправку уведомлений
+        о необходимости выполнить привычку"""
+        new_habit = serializer.save()
+        if not new_habit.is_pleasant:
+            set_schedule(
+                task_name=f'id:{new_habit.pk}; {new_habit.action[:30]}',
+                every=new_habit.qty_per_period,
+                period=new_habit.period,
+                start_at=new_habit.start_time,
+                telegram=new_habit.owner.telegram,
+                habit=new_habit.action,
+                reward=new_habit.reward if new_habit.reward else new_habit.relating_pleasant_habit.action
+            )
 
 
 class HabitRetrieveAPIView(RetrieveAPIView):
@@ -57,11 +66,12 @@ class HabitUpdateAPIView(UpdateAPIView):
     queryset = Habit.objects.all()
     permission_classes = [IsAuthenticated, IsOwner | IsModerator]
 
-    # def perform_update(self, serializer):
-    #     updated_lesson = serializer.save()
-    #     update_course_data.delay(updated_lesson.pk, 'Lesson', 'Изменен')
-
 
 class HabitDeleteAPIView(DestroyAPIView):
     queryset = Habit.objects.all()
     permission_classes = [IsAuthenticated, IsOwner]
+
+    def delete(self, request, *args, **kwargs):
+        print(self.get_object())
+        disable_task(self.get_object())
+        return self.destroy(request, *args, **kwargs)

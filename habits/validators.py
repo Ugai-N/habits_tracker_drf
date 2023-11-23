@@ -28,9 +28,9 @@ class HabitValidator:
                         raise serializers.ValidationError("Связанной привычкой может быть только приятная привычка")
 
                     # В связанные привычки могут попадать приятные привычки, созданные текущим пользователем
+                    request = serializer.context.get('request')
                     if Habit.objects.get(
-                            pk=serializer.initial_data[
-                                'relating_pleasant_habit']).owner != serializers.CurrentUserDefault():
+                            pk=serializer.initial_data['relating_pleasant_habit']).owner.id != request.user.id:
                         raise serializers.ValidationError(
                             "В качестве вознаграждения вы можете выбирать только свои приятные привычки")
 
