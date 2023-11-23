@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_yasg',  # swagger
     'corsheaders',  # cors
+    'django_celery_beat',
 
     'habits',
     'users',
@@ -138,9 +139,8 @@ MEDIA_ROOT = BASE_DIR / '/media/'
 
 AUTH_USER_MODEL = 'users.User'
 
-# LOGIN_REDIRECT_URL = '/'
-# LOGOUT_REDIRECT_URL = '/'
-
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
 # Настройки JWT-токенов
 REST_FRAMEWORK = {
@@ -167,3 +167,23 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False
+
+# Настройки для Celery
+# URL-адрес брокера сообщений
+CELERY_BROKER_URL = 'redis://localhost:6379'
+
+# URL-адрес брокера результатов, также Redis
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+
+# Часовой пояс для работы Celery
+CELERY_TIMEZONE = 'Europe/Athens'
+
+# Флаг отслеживания выполнения задач
+CELERY_TASK_TRACK_STARTED = True
+
+# Максимальное время на выполнение задачи
+CELERY_TASK_TIME_LIMIT = 30 * 60
+
+CELERY_IMPORTS = [
+    'habits.tasks',
+]
