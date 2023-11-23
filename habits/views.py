@@ -2,6 +2,8 @@ from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView,
 from rest_framework.permissions import IsAuthenticated
 
 from habits.models import Habit
+from habits.paginators import MyHabitsPaginator
+from habits.permissions import IsModerator, IsOwner
 from habits.serializers import HabitSerializer, CreateHabitSerializer
 
 
@@ -10,8 +12,7 @@ class HabitListAPIView(ListAPIView):
     serializer_class = HabitSerializer
     queryset = Habit.objects.all()
     permission_classes = [IsAuthenticated]
-
-    # pagination_class = CourseLessonPaginator
+    pagination_class = MyHabitsPaginator
 
     def get_queryset(self, *args, **kwargs):
         """Выводим список полезных привычек, по которым пользователь является владельцем или модератором"""
@@ -27,8 +28,6 @@ class PublicHabitListAPIView(ListAPIView):
     queryset = Habit.objects.all()
     permission_classes = [IsAuthenticated]
 
-    # pagination_class = CourseLessonPaginator
-
     def get_queryset(self, *args, **kwargs):
         """Выводим список опубликованных полезных привычек"""
         queryset = Habit.objects.filter(is_pleasant=False) & Habit.objects.filter(is_public=True)
@@ -37,8 +36,7 @@ class PublicHabitListAPIView(ListAPIView):
 
 class HabitCreateAPIView(CreateAPIView):
     serializer_class = CreateHabitSerializer
-
-    # permission_classes = [IsAuthenticated, ~IsModerator]
+    permission_classes = [IsAuthenticated, ~IsModerator]
 
     # def perform_create(self, serializer):
     #     """Сохраняем текущего пользователя владельцем (owner)"""
@@ -51,13 +49,13 @@ class HabitCreateAPIView(CreateAPIView):
 class HabitRetrieveAPIView(RetrieveAPIView):
     serializer_class = HabitSerializer
     queryset = Habit.objects.all()
-    # permission_classes = [IsAuthenticated, IsStudent | IsModerator | IsOwner]
+    permission_classes = [IsAuthenticated, IsModerator | IsOwner]
 
 
 class HabitUpdateAPIView(UpdateAPIView):
     serializer_class = CreateHabitSerializer
     queryset = Habit.objects.all()
-    # permission_classes = [IsAuthenticated, IsOwner | IsModerator]
+    permission_classes = [IsAuthenticated, IsOwner | IsModerator]
 
     # def perform_update(self, serializer):
     #     updated_lesson = serializer.save()
@@ -66,4 +64,4 @@ class HabitUpdateAPIView(UpdateAPIView):
 
 class HabitDeleteAPIView(DestroyAPIView):
     queryset = Habit.objects.all()
-    # permission_classes = [IsAuthenticated, IsOwner]
+    permission_classes = [IsAuthenticated, IsOwner]
