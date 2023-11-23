@@ -21,11 +21,19 @@ class HabitValidator:
                     (serializer.initial_data['reward'] and serializer.initial_data['relating_pleasant_habit']):
                 raise serializers.ValidationError(
                     "Необходимо заполнить ОДНО из полей: reward ИЛИ relating_pleasant_habit")
-            # В связанные привычки могут попадать только привычки с признаком приятной привычки
             else:
                 if serializer.initial_data['relating_pleasant_habit']:
+                    # В связанные привычки могут попадать только привычки с признаком приятной привычки
                     if not Habit.objects.get(pk=serializer.initial_data['relating_pleasant_habit']).is_pleasant:
                         raise serializers.ValidationError("Связанной привычкой может быть только приятная привычка")
+
+                    # В связанные привычки могут попадать приятные привычки, созданные текущим пользователем
+                    if Habit.objects.get(
+                            pk=serializer.initial_data[
+                                'relating_pleasant_habit']).owner != serializers.CurrentUserDefault():
+                        raise serializers.ValidationError(
+                            "В качестве вознаграждения вы можете выбирать только свои приятные привычки")
+
         # У приятной привычки не может быть вознаграждения или связанной привычки
         else:
             if serializer.initial_data['reward'] or serializer.initial_data['relating_pleasant_habit']:
@@ -37,6 +45,7 @@ class HabitValidator:
             raise serializers.ValidationError(
                 "На выполнение привычки должно уходить не больше 120 секунд. Маленькими шагами к большой цели!")
 
+        # Нельзя выполнять привычку реже, чем 1 раз в 7 дней
         if serializer.initial_data['period'] == 0 and serializer.initial_data['qty_per_period'] > 7:
             raise serializers.ValidationError(
                 "Чтобы привычка стала привычкой, ее нужно выполнять не реже, чем каждые 7 дней")

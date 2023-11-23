@@ -55,7 +55,7 @@ class HabitRetrieveAPIView(RetrieveAPIView):
 
 
 class HabitUpdateAPIView(UpdateAPIView):
-    serializer_class = HabitSerializer
+    serializer_class = CreateHabitSerializer
     queryset = Habit.objects.all()
     # permission_classes = [IsAuthenticated, IsOwner | IsModerator]
 

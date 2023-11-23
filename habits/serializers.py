@@ -28,10 +28,11 @@ class HabitSerializer(serializers.ModelSerializer):
         return f'каждые {instance.qty_per_period} {instance.get_period_display()}'
 
     def get_reward_general(self, instance):
-        if instance.reward:
-            return instance.reward
-        else:
-            return PleasantHabitSerializer(instance.relating_pleasant_habit).data
+        if not instance.is_pleasant:
+            if instance.reward:
+                return instance.reward
+            else:
+                return PleasantHabitSerializer(instance.relating_pleasant_habit).data
 
     def get_description(self, instance):
         return f'Я буду {instance.action} {instance.place} каждые {instance.qty_per_period} ' \
