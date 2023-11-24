@@ -68,7 +68,6 @@ class LessonTestCase(APITestCase):
         # проверяем, что owner - пользователь, установленный в сетапе
         self.assertEqual(Habit.objects.get(action='скушай яблочко').owner.email, '777test@yandex.ru')
 
-
     # def test_reward_validation_create(self):
     #     """Тестирование валидации поля reward при создания полезной привычки"""
     #
@@ -88,7 +87,6 @@ class LessonTestCase(APITestCase):
     #         response.json(),
     #         {'non_field_errors': ['Необходимо заполнить ОДНО из полей: reward ИЛИ relating_pleasant_habit']}
     #     )
-
 
 
 class ValidationTestCase(APITestCase):
@@ -255,7 +253,8 @@ class ValidationTestCase(APITestCase):
         # проверяем что выдается сообщение ктр мы записали
         self.assertEqual(
             response.json(),
-            {'non_field_errors': ['На выполнение привычки должно уходить от 1 до 120 секунд. Маленькими шагами к большой цели!']}
+            {'non_field_errors': [
+                'На выполнение привычки должно уходить от 1 до 120 секунд. Маленькими шагами к большой цели!']}
         )
 
     def test_frequency_validation(self):
