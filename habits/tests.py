@@ -91,7 +91,7 @@ class CreateTestCase(APITestCase):
         # проверяем, структуру вывода
         self.assertEqual(response.json(),
                          {
-                             'id': 2,
+                             'id': self.habit.id + 1,
                              'is_pleasant': False,
                              'is_public': False,
                              'place': 'дома',
@@ -297,7 +297,7 @@ class ValidationTestCase(APITestCase):
         )
 
 
-class ListTestCase(APITestCase):
+class AccessTestCase(APITestCase):
     def setUp(self) -> None:
         # создаем и аутентифицируем пользователя
         self.client = APIClient()
@@ -387,6 +387,25 @@ class ListTestCase(APITestCase):
             self.another_user_habit.pk
         )
 
+    def test_update(self):
+        """Тестирование невозможности редактировать чужие привычки"""
+
+        data = {
+            'action': '_upd'
+        }
+        response = self.client.patch(f'/edit/{self.another_user_habit.pk}', data=data)
+
+        # проверяем, что у пользователя нет прав
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete(self):
+        """Тестирование невозможности удалять чужие привычки"""
+
+        response = self.client.delete(f'/delete/{self.another_user_habit.pk}')
+
+        # проверяем, что у пользователя нет прав
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
 
 class TelegramTestCase(APITestCase):
     def setUp(self) -> None:
@@ -440,3 +459,27 @@ class TelegramTestCase(APITestCase):
         self.assertEqual(PeriodicTask.objects.get(
             name=f'id:{response.json()["id"]}; {response.json()["action"][:30]}').start_time,
                          datetime.datetime(2023, 11, 24, 17, 23, 54, tzinfo=datetime.timezone.utc))
+
+        # проверяем, что задача активна
+        self.assertEqual(PeriodicTask.objects.all().first().enabled, True)
+
+    def test_disabling_task(self):
+        """Тестирование остановки задачи при удалении привычки"""
+
+        data = {
+            'is_pleasant': False,
+            'place': 'дома',
+            'action': 'test',
+            'lead_time': 60,
+            'reward': 'массаж стоп',
+            'start_time': '2023-11-24T19:23:54+02:00',
+        }
+        response = self.client.post(reverse('habits:create_habit'), data=data)
+
+        # проверяем, что задача активна
+        self.assertEqual(PeriodicTask.objects.all().first().enabled, True)
+
+        response = self.client.delete(f'/delete/{response.json()["id"]}')
+
+        # проверяем, что задача не активна
+        self.assertEqual(PeriodicTask.objects.all().first().enabled, False)
