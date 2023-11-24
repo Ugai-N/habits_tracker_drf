@@ -1,0 +1,54 @@
+from rest_framework import serializers
+
+from habits.models import Habit
+
+
+class HabitValidator:
+    """Набор валидаторов для проверки полей при создании привычек"""
+    # дока https://www.django-rest-framework.org/api-guide/validators/
+    requires_context = True
+
+    def __init__(self, field):
+        self.field = field
+
+    def __call__(self, value, serializer):
+        field_value = dict(value).get(self.field)
+
+        # если это полезная привычка, то проверяем чтобы было заполнено лишь одно поле:
+        # либо reward, либо relating_pleasant_habit
+        if not field_value:
+            if (not serializer.initial_data.get('reward') and not serializer.initial_data.get(
+                    'relating_pleasant_habit')) or \
+                    (serializer.initial_data.get('reward') and serializer.initial_data.get('relating_pleasant_habit')):
+                raise serializers.ValidationError(
+                    "Необходимо заполнить ОДНО из полей: reward ИЛИ relating_pleasant_habit")
+            else:
+                if serializer.initial_data.get('relating_pleasant_habit'):
+                    # В связанные привычки могут попадать только привычки с признаком приятной привычки
+                    if not Habit.objects.get(pk=serializer.initial_data['relating_pleasant_habit']).is_pleasant:
+                        raise serializers.ValidationError("Связанной привычкой может быть только приятная привычка")
+
+                    # В связанные привычки могут попадать приятные привычки, созданные текущим пользователем
+                    request = serializer.context.get('request')
+                    if Habit.objects.get(
+                            pk=serializer.initial_data['relating_pleasant_habit']).owner.id != request.user.id:
+                        raise serializers.ValidationError(
+                            "В качестве вознаграждения вы можете выбирать только свои приятные привычки")
+
+        # У приятной привычки не может быть вознаграждения или связанной привычки
+        else:
+            if serializer.initial_data.get('reward') or serializer.initial_data.get('relating_pleasant_habit'):
+                raise serializers.ValidationError(
+                    "У приятной привычки не может быть вознаграждения или связанной приятной привычки")
+
+        # Время выполнения должно быть не больше 120 секунд:
+        if int(serializer.initial_data['lead_time']) not in range(1, 121):
+            raise serializers.ValidationError(
+                "На выполнение привычки должно уходить от 1 до 120 секунд. Маленькими шагами к большой цели!")
+
+        # Нельзя выполнять привычку реже, чем 1 раз в 7 дней
+        if (serializer.initial_data.get('period') in [0, None]) and serializer.initial_data.get(
+                'qty_per_period') is not None:
+            if int(serializer.initial_data.get('qty_per_period')) > 7:
+                raise serializers.ValidationError(
+                    "Чтобы привычка стала привычкой, ее нужно выполнять не реже, чем каждые 7 дней")
