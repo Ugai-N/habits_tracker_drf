@@ -1,4 +1,7 @@
+import datetime
+
 from django.urls import reverse
+from django_celery_beat.models import PeriodicTask
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
@@ -6,15 +9,17 @@ from habits.models import Habit
 from users.models import User
 
 
-class LessonTestCase(APITestCase):
+class CreateTestCase(APITestCase):
     def setUp(self) -> None:
+        # создаем и аутентифицируем пользователя
         self.client = APIClient()
         self.user = User.objects.create(email='777test@yandex.ru', password='SyncMaster11', telegram=6010128643)
         self.client.force_authenticate(user=self.user)
 
-        self.instance = Habit.objects.create(
+        # от имени аутентифицированного пользователя создаем полезную привычку
+        self.habit = Habit.objects.create(
             is_pleasant=False,
-            is_public=False,
+            is_public=True,
             place='дома',
             action='пить стакан воды по утрам',
             lead_time=60,
@@ -25,7 +30,6 @@ class LessonTestCase(APITestCase):
             period=0,
             start_time='2023-11-23T23:30:54+02:00'
         )
-        # print(f'setup{Habit.objects.all()}')
 
     def tearDown(self):
         # Очистит базу данных после теста и сбросьте счетчик id
@@ -51,8 +55,8 @@ class LessonTestCase(APITestCase):
             1
         )
 
-    def test_owner_create(self):
-        """Тестирование создания полезной привычки"""
+    def test_owner_create_pleasant(self):
+        """Тестирование создания приятной привычки"""
 
         data = {
             'is_pleasant': True,
@@ -68,25 +72,38 @@ class LessonTestCase(APITestCase):
         # проверяем, что owner - пользователь, установленный в сетапе
         self.assertEqual(Habit.objects.get(action='скушай яблочко').owner.email, '777test@yandex.ru')
 
-    # def test_reward_validation_create(self):
-    #     """Тестирование валидации поля reward при создания полезной привычки"""
-    #
-    #     data = {
-    #         'is_pleasant': False,
-    #         'place': 'дома',
-    #         'action': 'стоять в планке',
-    #         'lead_time': 90,
-    #     }
-    #     response = self.client.post(reverse('habits:create_habit'), data=data)
-    #
-    #     # проверяем, что нет ошибок вывода страницы
-    #     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-    #
-    #     # проверяем что выдается сообщение ктр мы записали
-    #     self.assertEqual(
-    #         response.json(),
-    #         {'non_field_errors': ['Необходимо заполнить ОДНО из полей: reward ИЛИ relating_pleasant_habit']}
-    #     )
+    def test_create_habit(self):
+        """Тестирование создания полезной привычки"""
+
+        data = {
+            'is_pleasant': False,
+            'place': 'дома',
+            'action': 'test',
+            'lead_time': 60,
+            'reward': 'массаж стоп',
+            'start_time': '2023-11-24T17:08:11.457220+02:00'
+        }
+        response = self.client.post(reverse('habits:create_habit'), data=data)
+
+        # проверяем, что нет ошибок вывода страницы
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # проверяем, структуру вывода
+        self.assertEqual(response.json(),
+                         {
+                             'id': 2,
+                             'is_pleasant': False,
+                             'is_public': False,
+                             'place': 'дома',
+                             'action': 'test',
+                             'lead_time': 60,
+                             'reward': 'массаж стоп',
+                             'qty_per_period': 1,
+                             'period': 0,
+                             'start_time': '2023-11-24T17:08:11.457220+02:00',
+                             'relating_pleasant_habit': None
+                         }
+                         )
 
 
 class ValidationTestCase(APITestCase):
@@ -278,3 +295,148 @@ class ValidationTestCase(APITestCase):
             response.json(),
             {'non_field_errors': ['Чтобы привычка стала привычкой, ее нужно выполнять не реже, чем каждые 7 дней']}
         )
+
+
+class ListTestCase(APITestCase):
+    def setUp(self) -> None:
+        # создаем и аутентифицируем пользователя
+        self.client = APIClient()
+        self.user = User.objects.create(email='777test@yandex.ru', password='SyncMaster11', telegram=6010128643)
+        self.client.force_authenticate(user=self.user)
+
+        # от имени аутентифицированного пользователя создаем полезную привычку
+        self.habit = Habit.objects.create(
+            is_pleasant=False,
+            is_public=True,
+            place='дома',
+            action='пить стакан воды по утрам',
+            lead_time=60,
+            reward='массаж стоп',
+            relating_pleasant_habit=None,
+            owner=self.user,
+            qty_per_period=1,
+            period=0,
+            start_time='2023-11-23T23:30:54+02:00'
+        )
+        # создаем второго пользователя
+        self.another_user = User.objects.create(email='another_user@yandex.ru', password='SyncMaster11', telegram=123)
+
+        # от имени второго пользователя создаем приятную привычку
+        self.another_user_habit = Habit.objects.create(
+            is_pleasant=False,
+            is_public=True,
+            place='в кровати',
+            action='подводить итоги дня и хвалить себя',
+            lead_time=120,
+            owner=self.another_user
+        )
+
+    def tearDown(self):
+        # Очистит базу данных после теста и сбросьте счетчик id
+        Habit.objects.all().delete()
+        # self.instance.reset_sequences = True
+
+    def test_get_my_list(self):
+        """Тестирование вывода списка привычек, где пользователь владелец"""
+
+        my_list_response = self.client.get(reverse('habits:list_mine'))
+
+        # проверяем что нет ошибок вывода страницы
+        self.assertEqual(my_list_response.status_code, status.HTTP_200_OK)
+
+        # проверяем, что пользователю выведется только 1 привычка, где он - владелец
+        self.assertEqual(len(my_list_response.json()['results']), 1)
+
+        # проверяем структуру вывода
+        self.assertEqual(
+            my_list_response.json(),
+            {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": self.habit.id,
+                        "start_time": "2023-11-23T23:30:54+02:00",
+                        "period_general": 'каждые 1 дней',
+                        "description": 'Я буду пить стакан воды по утрам дома каждые 1 дней. '
+                                       'Это занимает всего 60 секунд, а сколько гордости!',
+                        "reward_general": 'массаж стоп',
+                        "is_public": True,
+                        "owner": self.user.id
+                    },
+                ]
+            }
+        )
+
+    def test_get_public_list(self):
+        """Тестирование вывода списка публичных привычек"""
+
+        public_list_response = self.client.get(reverse('habits:list_public'))
+
+        # проверяем что нет ошибок вывода страницы
+        self.assertEqual(public_list_response.status_code, status.HTTP_200_OK)
+
+        # проверяем, что пользователю выведется 2 привычки
+        # (одна его, вторая - другого пользователя. Обе  установлены в Сетапе)
+        self.assertEqual(len(public_list_response.json()), 2)
+
+        # проверяем структуру вывода
+        self.assertEqual(
+            public_list_response.json()[1]['id'],
+            self.another_user_habit.pk
+        )
+
+
+class TelegramTestCase(APITestCase):
+    def setUp(self) -> None:
+        # создаем и аутентифицируем пользователя
+        self.client = APIClient()
+        self.user = User.objects.create(email='777test@yandex.ru', password='SyncMaster11', telegram=6010128643)
+        self.client.force_authenticate(user=self.user)
+
+    def tearDown(self):
+        # Очистит базу данных после теста и сбросьте счетчик id
+        Habit.objects.all().delete()
+        # self.instance.reset_sequences = True
+
+    def test_scheduling_task_pleasant(self):
+        """Тестирование планирования задачи по приятной привычки (задача не планируется)"""
+
+        data = {
+            'is_pleasant': True,
+            'place': 'дома',
+            'action': 'скушай яблочко',
+            'lead_time': 90,
+        }
+        response = self.client.post(reverse('habits:create_habit'), data=data)
+
+        # проверяем, что нет ошибок вывода страницы
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # проверяем, что запланировалась задача
+        self.assertEqual(PeriodicTask.objects.all().count(), 0)
+
+    def test_scheduling_task(self):
+        """Тестирование планирования задачи по полезной привычке"""
+
+        data = {
+            'is_pleasant': False,
+            'place': 'дома',
+            'action': 'test',
+            'lead_time': 60,
+            'reward': 'массаж стоп',
+            'start_time': '2023-11-24T19:23:54+02:00',
+        }
+        response = self.client.post(reverse('habits:create_habit'), data=data)
+
+        # проверяем, что нет ошибок вывода страницы
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # проверяем, что запланировалась задача
+        self.assertEqual(PeriodicTask.objects.all().count(), 1)
+
+        # проверяем, что запланированная задача на созданную привычку
+        self.assertEqual(PeriodicTask.objects.get(
+            name=f'id:{response.json()["id"]}; {response.json()["action"][:30]}').start_time,
+                         datetime.datetime(2023, 11, 24, 17, 23, 54, tzinfo=datetime.timezone.utc))

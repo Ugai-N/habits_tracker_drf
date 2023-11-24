@@ -72,6 +72,5 @@ class HabitDeleteAPIView(DestroyAPIView):
     permission_classes = [IsAuthenticated, IsOwner]
 
     def delete(self, request, *args, **kwargs):
-        print(self.get_object())
         disable_task(self.get_object())
         return self.destroy(request, *args, **kwargs)
