@@ -91,8 +91,8 @@ DATABASES = {
         'NAME': os.environ.get('POSTGRES_DB'),
         'USER': os.environ.get('POSTGRES_USER'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': 'db',
-        'PORT': 5432,
+        'HOST': os.environ.get('HOST'),
+        'PORT': os.environ.get('PORT'),
         'OPTIONS': {'options': '-c search_path=public,content'}
     }
 }
@@ -174,11 +174,11 @@ CORS_ALLOW_ALL_ORIGINS = False
 # Настройки для Celery
 # URL-адрес брокера сообщений
 # CELERY_BROKER_URL = 'redis://localhost:6379'
-CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
 
 # URL-адрес брокера результатов, также Redis
 # CELERY_RESULT_BACKEND = 'redis://localhost:6379'
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND')
 
 
 # Часовой пояс для работы Celery
